@@ -1,0 +1,58 @@
+System manager:
+- stores list of all systems sorted in order they will be called
+- System description:
+-- system name
+-- list of systems arguments
+-- Call() method that to execute system
+
+Component manager:
+- Stores list of all templates
+-- Template is list of all components that will be attached to entity created
+   from this template and a list of initial values/constructor arguments
+--- Array of storages for components
+--- Array of initial values/constructor arguments
+--- Array of all entity IDs, instantiated from this template
+
+Entity manager:
+- Stores all antites
+- Handles creation/destaruction of entityes
+- Entity:
+-- Entity id
+-- Template id
+-- Index in template
+
+Dependencies:
+  System manager knows about entites and componets, don't know about templates
+  Entity manager knows about components and templates, don't know about systems
+  Comopnet manager don't know about enything, it's just data storage
+Startup:
+  All meta inforamtion for framework should be handled on startup. All
+  templates, components and systems should be registered before first Tick will be called.
+
+  Components registration:
+    At first all components should be registered. Component is a POD structure,
+    without any logic.
+  Template registration:
+    Templates can be registered after components will be loaded.
+  Systems registration:
+    Systems can be registered after componets will be loaded.
+
+Runtime:
+  Frameworks workcycle devided in this parts:
+  - Handling new entity create
+  - Preparation of data for systems
+  - Execution of all systems
+  Entity creation:
+    Entity can be creation only during first step of workcycle in order to avoid
+    of memory allocation and breaking order of data during systems execution.
+    During entity creation entity will get unique entity ID and index in template.
+  Entity destruction:
+    Basicly opposit operation for entity creation, follows the same rules as entity
+    creation.
+  Data preparation:
+    Before calling, data for it should be filtered. Filter conditions are part of system definition.
+    Basicly its just a list of componets entity should have, list of componets entity shouldn't have and
+    range of values of this components.
+    If entity fullfill systems requirements, then all required componets are stored to spectial container, which will be passed to entity.
+  Systems call:
+    Prepearation subset of entities for systems:
