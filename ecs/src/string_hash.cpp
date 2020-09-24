@@ -1,4 +1,4 @@
-#include "string_hash.h"
+#include "../include/string_hash.h"
 
 string_hash_t hash_str(const char* s)
 {

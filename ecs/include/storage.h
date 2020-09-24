@@ -64,26 +64,45 @@ struct Storage {
   }
 
   template<typename T>
-  void add(T &value) {
+  uint32_t add(T &value) {
     // If there is a free slot somwhere in the middle, then put new item there
     if (!fs.empty()) {
       FreeSpace& fsItem = fs.back();
+      // TODO: check is offset a index in chunk
+      uint32_t index = fsItem.chunkNumber * getItemsPerChunk<T>() + fsItem.offset;
       *((T*)(chunks[fsItem.chunkNumber].data + fsItem.offset)) = value;
       fs.pop_back();
-      return;
+      return index;
     }
     if (chunks.empty() || !chunks.back().fits<sizeof(T)>())
       chunks.emplace_back(storage_chunk_t());
     *(T*)chunks.back().tail = value;
     chunks.back().tail += sizeof(value);
-    ++count;
+    return count++;
+  }
 
-    return;
+  template<typename T>
+  static constexpr uint32_t getItemsPerChunk() {
+    return storage_chunk_t::size / sizeof(T);
+  }
+
+  template<typename T>
+  T* get(uint32_t index) {
+    uint32_t indexInChunk = index % getItemsPerChunk<T>();
+    int chunkIndex = (index - indexInChunk) / getItemsPerChunk<T>();
+    return &reinterpret_cast<T*>(chunks[chunkIndex].data)[indexInChunk];
+  }
+
+  template<typename T>
+  T* get(uint32_t index) const {
+    uint32_t indexInChunk = index % getItemsPerChunk<T>();
+    int chunkIndex = (index - indexInChunk) / getItemsPerChunk<T>();
+    return &reinterpret_cast<T*>(chunks[chunkIndex].data)[indexInChunk];
   }
 
   template<typename T>
   void remove(size_t id) {
-    constexpr uint32_t itemsPerChunk = storage_chunk_t::size / sizeof(T);
+    uint32_t itemsPerChunk = getItemsPerChunk<T>();
     size_t offset = id % itemsPerChunk;
 
     // We are not actualy delete anything yet, just mark as a free space in storage

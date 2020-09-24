@@ -4,18 +4,72 @@
 #include "storage.h"
 #include "string_hash.h"
 
-#define ECS_API
+#include <vector>
+#include <map>
+
+/**
+ * TODO:
+ * Consider Lua as language for code generator
+ * https://github.com/mkottman/luaclang-parser
+ */
+
 /**
  * Entity manager keep's tracka of entities lifetime?
  */
 
 namespace ecs {
 
-struct ECS_API TemplateComponent;
+struct TemplateComponent;
 
 struct Archetype {
   std::vector<Storage> storages;
+
+  // Sorted array of all used indexes to avoid addresing to "empty" slots
+  std::vector<uint32_t> indexes;
+  std::map<component_id_t, size_t> componentIdToStorage;
 };
+
+enum class QueryMode {
+  Presence,
+  Absence,
+  ValueEq,
+  ValueNotEq,
+  ValueGreater,
+  ValueLess,
+  ValueGraeterOrEq,
+  ValueLessOrEq,
+};
+
+struct Condition;
+
+using Query = std::vector<Condition>;
+using Functor = bool(*)(const Storage& s, size_t index);
+
+struct Condition {
+  Condition() = default;
+  Condition(const component_id_t& _componentId, const QueryMode& _mode, const Functor _func = nullptr)
+    : componentId(_componentId)
+    , mode(_mode)
+    , func(_func)
+  {}
+
+  Condition(component_id_t&& _componentId, QueryMode&& _mode = QueryMode::Presence,  Functor&& _func = nullptr)
+    : componentId(std::move(_componentId))
+    , mode(std::move(_mode))
+    , func(std::move(_func))
+  {}
+
+  component_id_t componentId = INVALID_COMPONENT_ID;
+  QueryMode mode = QueryMode::Presence;
+  Functor func;
+};
+
+struct Entry {
+  size_t archetype;
+  size_t index;
+};
+
+using QueryResult = std::vector<Entry>;
 
 struct EntityManager
 {
@@ -70,7 +124,10 @@ private:
   ~EntityManager();
   entity_id_t create_entity(const char *templateName);
   void destroy_entity(entity_id_t entityId);
-  void register_template( const char *template_name, std::vector<TemplateComponent> components);
+  void register_template(const char *template_name, std::vector<TemplateComponent> components);
+
+  // First iteration: perform query inside this call and return all arguments
+  QueryResult perform_query(const Query& query) const;
 
   template<typename T>
   void register_component(const char *component_name) {
@@ -96,7 +153,7 @@ struct SystemDescription {
   // pointer to system function
   void (*system)(EntityManager &entityManager, SystemDescription* system);
 
-  const std::vector<component_id_t> components;
+  Query query;
 };
 
 struct SystemManager
@@ -115,7 +172,7 @@ struct SystemManager
 // with initial values.
 // TODO: replace inital_value type with Any class to be able to store
 // all component's initial values in one array
-struct ECS_API TemplateComponent {
+struct TemplateComponent {
   const char* component_name;
   int initial_value;
 };

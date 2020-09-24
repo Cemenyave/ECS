@@ -6,7 +6,7 @@ compilation_result=$?
 
 if [ $compilation_result -eq 0 ]; then
   echo "compilation SUCCESS"
-  ./ecs
+  ./samples/sandbox/sandbox
 else
   echo "compilation FAILED %compilation_result"
 fi

@@ -1,6 +1,5 @@
-#include "ecs.h"
-#include "string_hash.h"
-
+#include <ecs.h>
+#include "../include/string_hash.h"
 
 #include <iostream>
 
@@ -84,33 +83,31 @@ void run_test()
   std::cout << res1 << res2 << std::endl;
 }
 
-
 void add_three_system (int &value)
 {
   value += 3;
-  std::cout << "new value = " << value << std::endl;
+  //std::cout << "new value = " << value << std::endl;
 }
 
 void add_three_system_call (ecs::EntityManager &mgr, ecs::SystemDescription *system){
-  for (ecs::Archetype& archetype : mgr.archetypes) {
-    for (ecs::Storage& storage : archetype.storages) {
-      if (storage.componentId == system->components[0]) {
-        for (ecs::Storage::storage_chunk_t& chunk : storage.chunks ) {
-          for (int* value = (int*)chunk.data, i = 0; value < (int*)chunk.tail; ++value, ++i) {
-            add_three_system(*value);
-          }
-        }
-      }
-    }
+  ecs::QueryResult queryResult = mgr.perform_query( system->query );
+  for ( const auto& entry : queryResult) {
+    ecs::Archetype& archetype = mgr.archetypes[entry.archetype];
+    add_three_system(
+      *archetype.storages[archetype.componentIdToStorage[hash_str("value")]].get<int>(entry.index)
+    );
   }
+}
+
+static bool filter_func(const ecs::Storage& storage, size_t index) {
+  return *storage.get<int>(index) > 100;
 }
 
 static ecs::SystemDescription addThreeSystem {
   "add_three",
   &add_three_system_call,
-  {hash_str("value")}
+  {{hash_str("value"), ecs::QueryMode::Presence, &filter_func}}
 };
-
 
 void two_arguments_system(int& value, int& second_value) {
  value += 1;
@@ -118,12 +115,47 @@ void two_arguments_system(int& value, int& second_value) {
 }
 
 void two_arguments_system_call(ecs::EntityManager& mgr, ecs::SystemDescription *system) {
+  ecs::QueryResult queryResult = mgr.perform_query( system->query );
+  for ( const auto& entry : queryResult) {
+    ecs::Archetype& archetype = mgr.archetypes[entry.archetype];
+    two_arguments_system(
+      *archetype.storages[archetype.componentIdToStorage[hash_str("value")]].get<int>(entry.index),
+      *archetype.storages[archetype.componentIdToStorage[hash_str("second_value")]].get<int>(entry.index)
+    );
+  }
 }
 
 static ecs::SystemDescription twoArgumentsSystem {
   "two_arguments",
   &two_arguments_system_call,
-  {hash_str("value"), hash_str("second_value")}
+  {
+    {hash_str("value") },
+    {hash_str("second_value")},
+  }
+};
+
+void print_system( int value, int second_value ) {
+  std::cout << "value = " << value << " second_value = " << second_value << std::endl;
+}
+
+void print_system_system_call(ecs::EntityManager& mgr, ecs::SystemDescription *system) {
+  ecs::QueryResult queryResult = mgr.perform_query( system->query );
+  for ( const auto& entry : queryResult) {
+    ecs::Archetype& archetype = mgr.archetypes[entry.archetype];
+    print_system(
+      *archetype.storages[archetype.componentIdToStorage[hash_str("value")]].get<int>(entry.index),
+      *archetype.storages[archetype.componentIdToStorage[hash_str("second_value")]].get<int>(entry.index)
+    );
+  }
+}
+
+static ecs::SystemDescription printSystem {
+  "print_system",
+  &print_system_system_call,
+  {
+    {hash_str("value")},
+    {hash_str("second_value")},
+  }
 };
 
 void test_ecs() {
@@ -146,9 +178,10 @@ void test_ecs() {
 
   ecs::SystemManager systemManager;
   systemManager.add_system(&addThreeSystem);
+  systemManager.add_system(&twoArgumentsSystem);
+  systemManager.add_system(&printSystem);
 
   systemManager.call_systems(entityManager /*, stage*/);
-
   for (int i = 0; i < 100; ++i) {
     entityManager.create_entity("test_template");
     entityManager.create_entity("template_with_two_components");
@@ -160,7 +193,7 @@ void test_ecs() {
 void test_attribute_map() {
 }
 
-int main (int argc,  const char *argv[])
+int main(int argc,  const char *argv[])
 {
   std::cout << "main" << std::endl;
   test_attribute_map();

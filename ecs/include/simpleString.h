@@ -1,5 +1,5 @@
 #pragma once
-#include "string_hash.h"
+#include "../include/string_hash.h"
 #include <iostream>
 
 #ifdef WIN32

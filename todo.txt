@@ -1,0 +1,9 @@
+- Make samples instead of one messy main.cpp
+- Add initial values to templates
+- Reading templates from text config files files
+- Template derivation
+- Types
+- System call order and stages
+- Perform queries outside of system calls
+- Code generation
+- Add sample with some graphics (sfml or raylib)

@@ -1,0 +1,19 @@
+@PACKAGE_INIT@
+
+# Include the exported CMake file
+get_filename_component(ECS_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+
+# This macro enables usage of find_dependency().
+# https://cmake.org/cmake/help/v3.11/module/CMakeFindDependencyMacro.html
+include(CMakeFindDependencyMacro)
+
+# Don't use any dependencies right now, just left it hear as an example
+# Declare the used packages in order to communicate the requirements upstream.
+#find_dependency(Boost 1.62 REQUIRED
+#  COMPONENTS date_time)
+
+if(NOT TARGET ECS::ECS)
+  include("${ECS_CMAKE_DIR}/ECS-targets.cmake")
+endif()
+
+check_required_components(ECS)
